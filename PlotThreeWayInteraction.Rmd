@@ -1,0 +1,132 @@
+---
+title: "three way interaction plot template"
+output:
+  html_document:
+    df_print: paged
+---
+
+Original Link: https://tomhouslay.com/2014/03/21/understanding-3-way-interactions-between-continuous-variables/
+
+```{r}
+library(foreign)
+hsb2 <- read.dta("hsb2.dta")
+colnames(hsb2)[c(8,7,9,10)] <- c("y","x","z","w")
+
+```
+
+Regress
+```{r}
+lm.hsb2 <- lm(y ~ x*z*w, data = hsb2)
+summary(lm.hsb2)
+```
+
+The next thing I want to do is to create the slope and intercept values for our 4 combinations of values (high Z + high W, high Z + low W, etc). I use the original data to create high and low values for Z and W (mean plus/minus one standard deviation), then use coefficients from the linear regression to compute the intercepts and slopes:
+
+```{r}
+## High / low for w and z
+zH <- mean(hsb2$z) + sd(hsb2$z)
+zL <- mean(hsb2$z) - sd(hsb2$z)
+wH <- mean(hsb2$w) + sd(hsb2$w)
+wL <- mean(hsb2$w) - sd(hsb2$w)
+ 
+## Get coefficients from regression
+coefs.hsb2 <- coef(lm.hsb2)
+coef.int <- coefs.hsb2["(Intercept)"]
+coef.x <- coefs.hsb2["x"]
+coef.z <- coefs.hsb2["z"]
+coef.w <- coefs.hsb2["w"]
+coef.xz <- coefs.hsb2["x:z"]
+coef.xw <- coefs.hsb2["x:w"]
+coef.zw <- coefs.hsb2["z:w"]
+coef.xzw <- coefs.hsb2["x:z:w"]
+ 
+## Create slopes
+zHwH <- coef.x + zH*coef.xz + wH*coef.xw + zH*wH*coef.xzw
+zHwL <- coef.x + zH*coef.xz + wL*coef.xw + zH*wL*coef.xzw
+zLwH <- coef.x + zL*coef.xz + wH*coef.xw + zL*wH*coef.xzw
+zLwL <- coef.x + zL*coef.xz + wL*coef.xw + zL*wL*coef.xzw
+ 
+## Create intercepts
+i.zHwH <- coef.int + zH*coef.z + wH*coef.w + zH*wH*coef.zw
+i.zHwL <- coef.int + zH*coef.z + wL*coef.w + zH*wL*coef.zw
+i.zLwH <- coef.int + zL*coef.z + wH*coef.w + zL*wH*coef.zw
+i.zLwL <- coef.int + zL*coef.z + wL*coef.w + zL*wL*coef.zw
+
+```
+
+Now, I want to create a data frame that uses these intercepts and slopes to ‘predict’ lines: because I know that the lines are going to be straight, I simply compute the value of Y for the minimum and maximum values of X for each Z:W combination. I’m pretty sure it can be done with far less code than I’ve used here, but there you go:
+
+```{r}
+## a set of values of x
+x0 <- seq(min(hsb2$x), max(hsb2$x), length.out = 2)
+ 
+df.HH <- data.frame(x0 = x0)
+df.HH$y0 <- i.zHwH + df.HH$x0*zHwH
+df.HH$type <- rep("zHwH", nrow(df.HH))
+ 
+df.HL <- data.frame(x0 = x0)
+df.HL$y0 <- i.zHwL + df.HL$x0*zHwL
+df.HL$type <- rep("zHwL", nrow(df.HL))
+ 
+df.LH <- data.frame(x0 = x0)
+df.LH$y0 <- i.zLwH + df.LH$x0*zLwH
+df.LH$type <- rep("zLwH", nrow(df.LH))
+ 
+df.LL <- data.frame(x0 = x0)
+df.LL$y0 <- i.zLwL + df.LL$x0*zLwL
+df.LL$type <- rep("zLwL", nrow(df.LL))
+ 
+## Create final data frame
+df.pred <- rbind(df.HH, df.HL, df.LH, df.LL)
+ 
+## Remove unnecessary data frames
+rm(df.HH, df.HL, df.LH, df.LL)
+
+```
+
+Now, it’s time to plot the data! I’ve used ggplot2, and specified different colours and line types for each of our 4 combinations: red denotes high Z-value, and solid line denotes high W-value. I’ve also plotted the original data over the top:
+
+```{r}
+## Call library
+library(ggplot2)
+ 
+## Convert 'type' to factor
+df.pred$type <- factor(df.pred$type)
+ 
+## Draw plot
+ggplot(df.pred, aes(x = x0,
+                    y = y0)) +
+  geom_line(aes(colour = type,
+                linetype = type)) +
+  geom_jitter(data = hsb2, 
+            aes(x = x,
+                y = y),
+             size = 3,
+             alpha = 0.7) + 
+  theme_bw() +
+  theme(panel.background = element_rect(fill="ivory")) +
+  theme(legend.key = element_blank()) +
+  theme(text = element_text(size = 15)) +
+  scale_colour_manual(name = "Partial effect",
+                      labels = c("High z High w", 
+                                 "High z Low w", 
+                                 "Low z High w", 
+                                 "Low z Low w"),
+                      values = c("#E41A1C", 
+                                 "#E41A1C", 
+                                 "#377EB8", 
+                                 "#377EB8")) +   
+  scale_linetype_manual(name = "Partial effect",
+                     labels = c("High z High w", 
+                                "High z Low w", 
+                                "Low z High w", 
+                                "Low z Low w"),
+                     values = c("solid", 
+                                "longdash", 
+                                "solid", 
+                                "longdash"))
+
+```
+
+
+
