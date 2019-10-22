@@ -1,25 +1,19 @@
 ### Load Packages ###
 
-
-
-### Fresh Installs of essential packages
-        # From github
-        utils::install.packages(pkgs = "devtools")         
-                devtools::install_github("neuropsychology/psycho.R")  # Install the newest version
-                devtools::install_github("crsh/papaja")
-                devtools::install_github(
-                  repo = "IndrajeetPatil/ggstatsplot", # package path on GitHub
-                  dependencies = TRUE,                 # installs packages which ggstatsplot depends on
-                  upgrade_dependencies = TRUE          # updates any out of date dependencies
-                )
-        
-        # From CRAN
-        install.packages(c("conflict","psych", "Hmisc", "tidyverse", "plyr","apaTables","DataExplorer","psycho",
-                           "ggstatsplot","GPArotation","lavaan","ltm","semTools","rmarkdown","afex", "pacman", "ez", "jmv", "haven"))
+my_packages <- c("devtools","tidyverse", "broom", "coefplot", "cowplot",
+                 "gapminder", "GGally", "ggrepel", "ggridges", "gridExtra",
+                 "here", "interplot", "margins", "maps", "mapproj",
+                 "mapdata", "MASS", "quantreg", "rlang", "scales",
+                 "survey", "srvyr", "viridis", "viridisLite", "devtools", "psych",
+                 "lavaan", "ltm", "apaTables","jmv", "ggstatsplot", "semTools", "ez",
+                 "pacman", "papaja", "relimp","semproducible")
+install.packages(my_packages, repos = "http://cran.rstudio.com")
 
 ### Load multiple packages at once
-            pacman::p_load(tidyverse, psych, lavaan, psych, readr, ltm, plyr, apaTables, jmv, haven) 
+    pacman::p_load(readr, tidyverse, psych, lavaan, psych, readr, ltm, plyr, apaTables, jmv, haven, papaja, pacman, 
+                   relimp) 
         
+    
 ### Other useful Utilities ###
   ### CFA
     order = c("df","chisq","rmsea","srmr","cfi","tli","bic","wrmr") #list of SEM fit indices
