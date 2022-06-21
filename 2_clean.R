@@ -16,7 +16,8 @@
         select(df, varPredictors) #subset data with just those variables
         
 ### Create unique subject number
-        df$subjnumb <- 1:nrow(df)
+        df <- df %>%
+                mutate(id = row_number())
         
 ### Calculating unweighted scale means (most are redundant)
         ### Preferred method: combine psych package and dplyr
@@ -42,12 +43,26 @@
         df %>% mutate(g = case_when(a == 1 | a == 3 | a == 5 | (a == 1 & b == 4) ~ 2,
                                     a == 0 | a == 1 | a == 4 | a == 3 |  c == 4 ~ 3,
                                     TRUE ~ NA_real_))  
+        
+        ## Recode one item
+        library(plyr)
+        df$newcode <- as.numeric(mapvalues(df$scode, from = c("Four", "Six", "Eight"), to = c(4, 6, 8)))
+        
+        ## Recode multiple items to same coding scheme
+        df_recode <- df %>% 
+                mutate_at(c("ITEM_1","ITEM_2"), 
+                          funs(recode(., "Strongly disagree"=1, 
+                                      "Somewhat disagree"=2,
+                                      "Neither agree nor disagree"=3,
+                                      "Somewhat agree"=4,
+                                      "Strongly agree" = 5,
+                                      .default = NaN)))
+        
+       
+        
 ### Create dummy variables
         df$DUMMY_A <- ifelse(df$FACTOR_A=="A", 1,0)
         
-### Create a sumamry of variables
-        library(summarytools)
-        view(dfSummary(df))
         
 ### Create data for MPlus 
         MplusAutomation::prepareMplusData(df, "df.dat", inpfile=TRUE)

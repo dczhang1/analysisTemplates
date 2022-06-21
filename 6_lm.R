@@ -17,6 +17,11 @@
         ### Create APA regression table
                 apa.reg.table(reg.model.1,reg.model.2, filename = "RegTable.1.doc")
 
+        ### Create tables with stargazer
+                stargazer(reg.model.1, reg.model.2)
+                
 ### Relative Importance
                 calc.relimp(reg.model.1, type = c("lmg"), rela = TRUE)
+                
+### Interactions
                 

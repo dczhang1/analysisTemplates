@@ -1,0 +1,143 @@
+---
+title: "sherlock_topicmodeling"
+author: "dcz"
+date: "12/5/2019"
+output: html_document
+---
+Following
+https://juliasilge.com/blog/sherlock-holmes-stm/
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Import Data
+Download Sherlock stories from Project Gutenberg
+```{r}
+library(tidyverse)
+library(gutenbergr)
+
+sherlock_raw <- gutenberg_download(1661)
+
+sherlock <- sherlock_raw %>%
+    mutate(story = ifelse(str_detect(text, "ADVENTURE"),
+                          text,
+                          NA)) %>%
+    fill(story) %>%
+    filter(story != "THE ADVENTURES OF SHERLOCK HOLMES") %>%
+    mutate(story = factor(story, levels = unique(story)))
+
+sherlock
+```
+
+# Tidying
+
+Next, let’s transform this text data into a tidy data structure using unnest_tokens(). We can also remove stop words at this point because they will not do us any favors during the topic modeling process. Using the stop_words dataset as a whole removes a LOT of stop words; you can be more discriminating and choose specific sets of stop words if appropriate for your purpose. Let’s also remove the word “holmes” because it is so common and used neutrally in all twelve stories.
+
+```{r}
+tidy_sherlock <- sherlock %>%
+    mutate(line = row_number()) %>%
+    unnest_tokens(word, text) %>%
+    anti_join(stop_words) %>%
+    filter(word != "holmes")
+
+#Count most words
+tidy_sherlock %>%
+    count(word, sort = TRUE)
+```
+# td-idf
+What are the highest tf-idf words in these twelve stories? The statistic tf-idf identifies words that are important to a document in a collection of documents; in this case, we’ll see which words are important in one of the stories compared to the others.
+
+```{r}
+
+library(drlib)
+
+sherlock_tf_idf <- tidy_sherlock %>%
+    count(story, word, sort = TRUE) %>%
+    bind_tf_idf(word, story, n) %>%
+    arrange(-tf_idf) %>%
+    group_by(story) %>%
+    top_n(10) %>%
+    ungroup
+
+sherlock_tf_idf %>%
+    mutate(word = reorder_within(word, tf_idf, story)) %>%
+    ggplot(aes(word, tf_idf, fill = story)) +
+    geom_col(alpha = 0.8, show.legend = FALSE) +
+    facet_wrap(~ story, scales = "free", ncol = 3) +
+    scale_x_reordered() +
+    coord_flip() +
+    theme(strip.text=element_text(size=11)) +
+    labs(x = NULL, y = "tf-idf",title = "Highest tf-idf words in Sherlock Holmes short stories", subtitle = "Individual stories focus on different characters and narrative")
+```
+
+
+# Topic modeling
+
+I am really a fan of the stm package these days because it is easy to install (no rJava dependency! 💀), it is fast (written in Rcpp! 😎), and I have gotten excellent results when experimenting with it. The stm() function take as its input a document-term matrix, either as a sparse matrix or a dfm from quanteda.
+
+```{r}
+library(quanteda)
+library(stm)
+
+sherlock_dfm <- tidy_sherlock %>%
+    count(story, word, sort = TRUE) %>%
+    cast_dfm(story, word, n)
+
+sherlock_sparse <- tidy_sherlock %>%
+    count(story, word, sort = TRUE) %>%
+    cast_sparse(story, word, n)
+```
+You could use either of these objects (sherlock_dfm or sherlock_sparse) as the input to stm(); in the video, I use the quanteda object, so let’s go with that. In this example I am training a topic model with 6 topics, but the stm includes lots of functions and support for choosing an appropriate number of topics for your model.
+
+```{r}
+topic_model <- stm(sherlock_dfm, K = 6, 
+                   verbose = FALSE, init.type = "Spectral")
+
+# You can use summary to look at topic model objects
+summary(topic_model)
+```
+
+The stm package has a summary() method for trained topic models like these that will print out some details to your screen, but I want to get back to a tidy data frame so I can use dplyr and ggplot2 for data manipulation and data visualization. I can use tidy() on the output of an stm model, and then I will get the probabilities that each word is generated from each topic.
+
+# Tidy topic model data
+```{r}
+td_beta <- tidy(topic_model)
+
+td_beta %>%
+    group_by(topic) %>%
+    top_n(10, beta) %>%
+    ungroup() %>%
+    mutate(topic = paste0("Topic ", topic),
+           term = reorder_within(term, beta, topic)) %>%
+    ggplot(aes(term, beta, fill = as.factor(topic))) +
+    geom_col(alpha = 0.8, show.legend = FALSE) +
+    facet_wrap(~ topic, scales = "free_y") +
+    coord_flip() +
+    scale_x_reordered() +
+    labs(x = NULL, y = expression(beta),
+         title = "Highest word probabilities for each topic",
+         subtitle = "Different words are associated with different topics")
+```
+
+This topic modeling process is a great example of the kind of workflow I often use with text and tidy data principles.
+
+  * I use tidy tools like dplyr, tidyr, and ggplot2 for initial data exploration and preparation.
+ * Then I cast to a non-tidy structure to perform some machine learning algorithm.
+
+* then tidy the results of my statistical modeling so I can use tidy data principles again to understand my model results.
+
+Now let’s look at another kind of probability we get as output from topic modeling, the probability that each document is generated from each topic.
+
+```{r}
+
+`td_gamma <- tidy(topic_model, matrix = "gamma",                    
+                 document_names = rownames(sherlock_dfm))
+
+ggplot(td_gamma, aes(gamma, fill = as.factor(topic))) +
+  geom_histogram(alpha = 0.8, show.legend = FALSE) +
+  facet_wrap(~ topic, ncol = 3) +
+  labs(title = "Distribution of document probabilities for each topic",
+       subtitle = "Each topic is associated with 1-3 stories",
+       y = "Number of stories", x = expression(gamma))``
+

@@ -1,0 +1,93 @@
+---
+title: "demo_afex"
+author: "Don Z"
+date: "10/19/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+### Required libraries
+```{r echo=TRUE, message=FALSE, warning=FALSE, paged.print=FALSE}
+library(afex)
+library(skimr)
+```
+### Example
+Let me illustrate how to calculate an ANOVA with a simple example. We use data courtesy of Andrew Heathcote and colleagues . The data are lexical decision and word naming latencies for 300 words and 300 nonwords from 45 participants. Here we only look at three factors: **task is a between subjects** (or independent-samples) factor: 25 participants worked on the lexical decision task (lexdec; i.e., participants had to make a binary decision whether or not the presented string is a word or nonword) and 20 participants on the naming task (naming; i.e., participant had to say the presented string out loud).
+**stimulus is a repeated-measures or within-subjects factor** that codes whether a presented string was a word or nonword. **length is also a repeated-measures factor** that gives the number of characters of the presented strings with three levels: 3, 4, and 5.
+
+**The dependent variable is the response latency or response time** for each presented string. More specifically, as is common in the literature we analyze the log of the response times, log_rt. After excluding erroneous responses each participants responded to between 135 and 150 words and between 124 and 150 nonwords. To use this data in an ANOVA one needs to aggregate the data such that only one observation per participant and cell of the design (i.e., combination of all factors) remains. As we will see, afex does this automatically for us (this is one of the features I blatantly stole from ez).
+
+### Load data and clean up data.
+We first load the data and remove the roughly 2% errors. The structure of the data.frame (obtained via str()) shows us that the data has a few more factors than discussed here. To specify our ANOVA we first use function aov_car() which works very similar to base R aov(), but as all afex functions uses car::Anova() (read as function Anova() from package car) as the backend for calculating the ANOVA.
+```{r echo=TRUE, message=FALSE, warning=FALSE, paged.print=TRUE}
+data("fhch2010") # load data (comes with afex) 
+mean(!fhch2010$correct) # error rate
+fhch <- droplevels(fhch2010[ fhch2010$correct,]) # remove errors
+skim(fhch)
+```
+
+### Specifying ANOVA
+```{r}
+(a1 <- aov_car(log_rt ~ task*length*stimulus + Error(id/(length*stimulus)), data = fhch))
+```
+The printed output is an ANOVA table that could basically be copied to a manuscript as is. One sees the terms in column Effect, the degrees of freedoms (df), the mean-squared error (MSE, I would probably remove this column in a manuscript), the F-value (F, which also contains the significance stars), and the p-value (p.value). The only somewhat uncommon column is ges which provides generalized eta-squared, ‘the recommended effect size statistics for repeated measure designs’  . The standard output also reports Greenhouse-Geisser (GG) corrected df for repeated-measures factors with more than two levels (to account for possible violations of sphericity). Note that these corrected df are not integers.
+
+We can also see a warning notifying us that afex has detected that each participant and cell of the design provides more than one observation which are then automatically aggregated using mean. The warning serves the purpose to notify the user in case this was not intended (i.e., when there should be only one observation per participant and cell of the design). The warning can be suppressed via specifying fun_aggregate = mean explicitly in the call to aov_car.
+
+The formula passed to aov_car basically needs to be the same as for standard aov with a few differences:
+
+It must have an Error term specifying the column containing the participant (or unit of observation) identifier (e.g., minimally +Error(id)). This is necessary to allow the automatic aggregation even in designs without repeated-measures factor.
+Repeated-measures factors only need to be defined in the Error term and do not need to be enclosed by parentheses. Consequently, the following call produces the same ANOVA:
+```{r echo=FALSE}
+aov_car(log_rt ~ task + Error(id/length*stimulus), fhch)
+```
+
+In addition to aov_car, afex provides two further function for calculating ANOVAs. These function produce the same output but differ in the way how to specify the ANOVA.
+
+aov_ez allows the ANOVA specification not via a formula but via character vectors (and is similar to ez::ezANOVA()):
+```{r}
+aov_ez(id = "id", dv = "log_rt", fhch, between = "task", within = c("length", "stimulus"))
+```
+aov_4 requires a formula for which the id and repeated-measures factors need to be specified as in lme4::lmer() (with the same simplification that repeated-measures factors only need to be specified in the random part):
+```{r}
+aov_4(log_rt ~ task + (length*stimulus|id), fhch)
+```
+```{r}
+aov_4(log_rt ~ task*length*stimulus + (length*stimulus|id), fhch)
+```
+
+###Follow up tests
+A common requirement after the omnibus test provided by the ANOVA is some-sort of follow-up analysis. For this purpose, afex is fully integrated with lsmeans .
+
+For example, assume we are interested in the significant task:stimulus interaction. As a first step we might want to investigate the marginal means of these two factors:
+```{r}
+lsmeans(a1, c("stimulus","task"))
+```
+From this we can see naming trials seems to be generally slower (as a reminder, the dv is log-transformed RT in seconds, so values below 0 correspond to RTs bewteen 0 and 1), It also appears that the difference between word and nonword trials is larger in the naming task then in the lexdec task. We test this with the following code using a few different lsmeans function. We first use lsmeans again, but this time using task as the conditioning variable specified in by. Then we use pairs() for obtaining all pairwise comparisons within each conditioning strata (i.e., level of task). This provides us already with the correct tests, but does not control for the family-wise error rate across both tests. To get those, we simply update() the returned results and remove the conditioning by setting by=NULL. In the call to update we can already specify the method for error control and we specify 'holm',  because it is uniformly more powerful than Bonferroni.
+```{r}
+(ls1 <- lsmeans(a1, c("stimulus"), by="task"))
+update(pairs(ls1), by=NULL, adjust = "holm")
+```
+Hmm. These results show that the stimulus effects in both task conditions are independently significant. Obviously, the difference between them must also be significant then, or?
+
+```{r}
+pairs(update(pairs(ls1), by=NULL))
+```
+They obviously are. As a reminder, the interaction is testing exactly this, the difference of the difference. And we can actually recover the F-value of the interaction using lsmeans alone by invoking yet another of its functions, test(..., joint=TRUE).
+```{r}
+test(pairs(update(pairs(ls1), by=NULL)), joint=TRUE)
+```
+These last two example were perhaps not particularly interesting from a statistical point of view, but show an important ability of lsmeans. Any set of estimated marginal means produced by lsmeans, including any sort of (custom) contrasts, can be used again for further tests or calculating new sets of marginal means. And with test() we can even obtain joint F-tests over several parameters using joint=TRUE. lsmeans is extremely powerful and one of my most frequently used packages that basically performs all tests following an omnibus test (and in its latest version it directly interfaces with rstanarm so it can now also be used for a lot of Bayesian stuff, but this is the topic of another blog post).
+
+### Plotting
+Finally, lsmeans can also be used directly for plotting by envoking lsmip:
+```{r}
+lsmip(a1, task ~ stimulus)
+```
+
+
+
+
+

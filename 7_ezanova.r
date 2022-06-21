@@ -57,3 +57,17 @@ mixed_anova <- ezANOVA(data = ANT,
                           detailed = T) 
 print(mixed_anova)
 
+
+################################
+### PAIRWISE COMPARISONS ###
+################################
+
+pairwise_comparisons(
+        data = xData,
+        x = groupA,
+        y = dv,
+        type = "robust", 
+        paired = F,
+        p.adjust.method = "holm"
+)
+

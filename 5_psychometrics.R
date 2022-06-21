@@ -15,7 +15,6 @@
     # Factor loadings
         fa(efa.data, nfactors = 3, rotate = "oblimin", fm = "pa")        
         
-        
 ### Unidimensional IRT
         df.irt <- select(df.clean, item1:item10)      
         grm.validity <- grm(df.irt)
