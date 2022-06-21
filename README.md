@@ -1,5 +1,4 @@
 # analysisTemplates
-Don's analysis templates in R
 
 ### 1_load.R
 
