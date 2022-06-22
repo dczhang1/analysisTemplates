@@ -1,4 +1,4 @@
-# analysisTemplates
+# README: List of Templates
 
 ### 1_load.R
 
