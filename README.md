@@ -1,4 +1,4 @@
-# analysisTemplates
+# Templates for Statistics in R
 
 ### 1_load.R
 
