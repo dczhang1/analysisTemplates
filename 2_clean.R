@@ -29,7 +29,8 @@
         df$meanScore <- rowMeans(df[,c(1,2,3,4,5)], na.rm=T)
         
         ### If you konw item names -- good method but requires reverse coding separately
-        df$meanScore <- rowMeans(df[,c("IPIP1","IPIP2","IPIP3","IPIP4","IPIP5")], na.rm=T)
+        df$meanScore <- rowMeans(df[,c("IPIP1", "IPIP2", "IPIP3", "IPIP4", "IPIP5")], na.rm = T)
+        
         
         ### More obscure
         ### Uses dplyr and dput to get names quickly
