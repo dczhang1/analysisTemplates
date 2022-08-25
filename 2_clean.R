@@ -45,6 +45,11 @@
                                     a == 0 | a == 1 | a == 4 | a == 3 |  c == 4 ~ 3,
                                     TRUE ~ NA_real_))  
         
+        ## Create categories from continuous variables
+        df %>% mutate(g = case_when(
+                a <= 5 ~ 'low',
+                a > 5 ~ 'high'))
+        
         ## Recode one item
         library(plyr)
         df$newcode <- as.numeric(mapvalues(df$scode, from = c("Four", "Six", "Eight"), to = c(4, 6, 8)))
@@ -60,7 +65,7 @@
                                       .default = NaN)))
         
        
-        
+
 ### Create dummy variables
         df$DUMMY_A <- ifelse(df$FACTOR_A=="A", 1,0)
         
