@@ -15,10 +15,3 @@
     # Factor loadings
         fa(efa.data, nfactors = 3, rotate = "oblimin", fm = "pa")        
         
-### Unidimensional IRT
-        df.irt <- select(df.clean, item1:item10)      
-        grm.validity <- grm(df.irt)
-        summary(df.irt)
-        coef(df.irt)
-        plot(df.irt, type = "ICC")
-        plot(df.irt, type = "IIC")

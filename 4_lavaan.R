@@ -14,6 +14,7 @@ order = c("df","chisq","rmsea","srmr","cfi","tli","bic","wrmr") #list of SEM fit
                  labentB =~ x4 + x5 + x6
                  latentC =~ x7 + x8 + x9
               '
+            
             # Simple Latent path model
             sem.model.1 <- '
                  latentA =~ x1 + x2 + x3

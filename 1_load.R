@@ -1,33 +1,19 @@
-### Load Packages ###
+### Install and Load Packages ###
+        
+        install.packages("ggplot2")
 
-my_packages <- c(
-  "devtools", "tidyverse", "broom", "coefplot", "cowplot",
-  "gapminder", "GGally", "ggrepel", "ggridges", "gridExtra",
-  "here", "interplot", "margins", "maps", "mapproj",
-  "mapdata", "MASS", "quantreg", "rlang", "scales",
-  "survey", "srvyr", "viridis", "viridisLite", "devtools", "psych",
-  "lavaan", "ltm", "apaTables", "jmv", "ggstatsplot", "semTools", "ez",
-  "pacman", "papaja", "relimp", "semproducible", "plyr"
-)
-
-install.packages(my_packages, repos = "http://cran.rstudio.com")
+### Load packages
+        library(ggplot2)
 
 ### Other remote installs
-remotes::install_github("dgrtwo/drlib") # for topic modeling and text analysis
-
-### Load multiple packages at once
-pacman::p_load(
-  readr, tidyverse, psych, lavaan, psych, readr, ltm, plyr, apaTables, jmv, haven, papaja, pacman,
-  relimp
-)
-
+        remotes::install_github("dgrtwo/drlib") # for topic modeling and text analysis
 
 ### Other useful Utilities ###
-### CFA
-order <- c("df", "chisq", "rmsea", "srmr", "cfi", "tli", "bic", "wrmr") # list of SEM fit indices
-
-### Override conflict functions
-alpha <- psych::alpha
-select <- dplyr::select
-filter <- dplyr::filter
-summarize <- dplyr::summarise
+        ### CFA
+                order <- c("df", "chisq", "rmsea", "srmr", "cfi", "tli", "bic", "wrmr") # list of SEM fit indices
+        
+        ### Override conflict functions
+                alpha <- psych::alpha
+                select <- dplyr::select
+                filter <- dplyr::filter
+                summarize <- dplyr::summarise

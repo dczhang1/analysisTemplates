@@ -1,5 +1,4 @@
 ### Data Manipulation and Management Codes
-###
 
 ### Combining data frames to add observations with same variable names
         dfNew <- plyr::rbind.fill(df1,df2)
