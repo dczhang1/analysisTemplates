@@ -1,56 +1,57 @@
-figure_regcoef <- function(formula, data, plot_title = "Regression Coefficients") {
-            library(ggplot2)
-            
-            # Fit the model
-            model <- lm(formula, data)
-            
-            # Get coefficients and confidence intervals
-            coefficients <- coef(model)
-            confidence_intervals <- confint(model)
-            
-            # Extract p-values
-            p_values <- summary(model)$coefficients[, 4]
-            
-            # Determine significance based on p-values
-            significant <- p_values < 0.05
-            
-            # Determine fill color for bars
-            bar_color <- ifelse(significant & coefficients > 0, "cyan3", 
-                                ifelse(significant & coefficients < 0, "pink3", "grey"))
-            
-            # Transform data for plotting
-            plot_data <- data.frame(
-                        predictor = names(coefficients),
-                        coef = coefficients,
-                        lower = confidence_intervals[, 1],
-                        upper = confidence_intervals[, 2],
-                        bar_color = bar_color
-            )
-            
-            # Exclude the intercept
-            plot_data <- plot_data[plot_data$predictor != "(Intercept)", ]
-            
-            # Plot
-            ggplot(plot_data, aes(x = predictor, y = coef)) +
-                        geom_col(aes(fill = bar_color), width = 0.6) +
-                        geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.2, color = "#555555") +
-                        coord_flip() +
-                        scale_fill_identity() +  # Use the provided colors directly
-                        labs(title = plot_title,   # Use the plot_title argument here
-                             x = "Predictors",
-                             y = "Coefficient Value") +
-                        theme_minimal(base_family = "sans") +
-                        theme(
-                                    plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
-                                    axis.title = element_text(size = 14, face = "bold"),
-                                    axis.text = element_text(size = 12),
-                                    legend.position = "none",
-                                    panel.grid.major = element_blank(),
-                                    panel.grid.minor = element_blank(),
-                                    panel.border = element_rect(colour = "black", fill = NA, size = 1)
-                        )
+### Plots regression coefficients for multiple outcomes on rows, and two predictors
+
+library(ggplot2)
+library(broom)
+library(dplyr)
+
+figure_multi_regCoefs <- function(data, predictors, outcomes) {
+        results <- list()
+        
+        # Loop through each outcome and fit a regression model
+        for (outcome in outcomes) {
+                formula_str <- paste(outcome, "~", paste(predictors, collapse = " + "))
+                model <- lm(as.formula(formula_str), data = data)
+                tidy_res <- broom::tidy(model, conf.int = TRUE)
+                
+                # Filter out the intercept and bind to results
+                tidy_res <- tidy_res %>% filter(term != "(Intercept)")
+                tidy_res$outcome <- outcome
+                results[[outcome]] <- tidy_res
+        }
+        
+        # Combine results, add a column indicating fill color
+        df <- bind_rows(results)
+        df$fill_color <- ifelse(df$p.value < 0.05, as.character(df$term), "grey")
+        
+        # Sort outcomes based on the magnitude of the coefficient for the first predictor
+        sorting_vector <- df %>% 
+                filter(term == predictors[1]) %>%
+                arrange((abs(estimate))) %>%
+                pull(outcome)
+        
+        # Create the plot
+        plot <- ggplot(df, aes(x = estimate, y = factor(outcome, levels = sorting_vector), fill = fill_color, group = term)) +
+                geom_col(aes(color = fill_color), position = position_dodge(width = 0.7), width = 0.6) +
+                geom_errorbarh(aes(xmin = conf.low, xmax = conf.high, color = fill_color), position = position_dodge(width = 0.7), height = 0.2) +
+                scale_fill_manual(values = c("grey", setNames(palette("Set1")[1:length(predictors)], predictors))) +
+                scale_color_manual(values = c("grey", setNames(palette("Set1")[1:length(predictors)], predictors))) +
+                labs(x = "Regression Coefficient", y = "Outcome") +
+                theme_minimal() +
+                theme(
+                        text = element_text(family = "Arial"),
+                        legend.position = "top",
+                        legend.title = element_blank(),
+                        legend.text = element_text(size = 10),
+                        axis.title = element_text(size = 12, face = "bold"),
+                        axis.text = element_text(size = 10),
+                        plot.title = element_text(size = 14, face = "bold")
+                ) +
+                guides(fill = guide_legend(title = "Predictor"), color = guide_legend(title = "Predictor"))
+        
+        return(plot)
 }
 
-#Demonstration
-#data(mtcars)
-#figure_regcoef('mpg ~ cyl + disp + hp + drat + wt', data = mtcars)
+# Example usage
+data(mtcars)
+plot <- figure_multi_regCoefs(mtcars, predictors = c("wt", "hp"), outcomes = c("mpg", "disp"))
+print(plot)
